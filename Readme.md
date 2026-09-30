@@ -31,4 +31,7 @@ Data is compiled from ESPNcricinfo, IPL official website, and Google.
 This dataset is for educational and analytical purposes. 
 
 ## Tags
-cricket, t20, 2026, india, ipl, sports-analytics
+cricket, t20, 2026, india, ipl, sports-analytics       
+##
+
+> These statistics were downloaded from [Kaggle](https://www.kaggle.com/datasets/krishd123/ipl-2026-com).
