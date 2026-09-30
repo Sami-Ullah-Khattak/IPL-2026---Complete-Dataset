@@ -60,13 +60,17 @@ df_points = load_data('points_table.csv')
 df_matches = load_data('matches.csv')
 df_batting = load_data('batting_stats.csv')
 df_bowling = load_data('bowling_stats.csv')
+df_squads = load_data('squads.csv')
+df_venues = load_data('venues.csv')
+df_deliveries = load_data('deliveries.csv')
+df_fielding_stats = load_data('fielding_stats.csv')
 
 # --- Sidebar Navigation ---
 st.sidebar.title("🏏 IPL 2026")
 st.sidebar.markdown("### Dashboard Navigation")
 page = st.sidebar.radio(
     "",
-    ["Overview & Points Table", "Match Analysis", "Batting Statistics", "Bowling Statistics"]
+    ["Overview & Points Table", "Match Analysis", "Batting Statistics", "Bowling Statistics", "Squads", "Venues", "Deliveries", "Fielding Statistics"]
 )
 
 st.sidebar.markdown("---")
@@ -376,3 +380,139 @@ elif page == "Bowling Statistics":
         
     else:
         st.error("Bowling data not found.")
+
+# --- 5. Squads ---
+elif page == "Squads":
+    st.title("🧑‍🤝‍🧑 Team Squads")
+    st.markdown("Explore the complete squads of all participating teams.")
+    
+    if not df_squads.empty:
+        team_col = 'team_name' if 'team_name' in df_squads.columns else 'team'
+        teams = df_squads[team_col].dropna().unique()
+        selected_team = st.selectbox("Select a Team", teams)
+        
+        team_squad = df_squads[df_squads[team_col] == selected_team]
+        st.subheader(f"{selected_team} Squad")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if 'role' in team_squad.columns:
+                role_counts = team_squad['role'].value_counts().reset_index()
+                role_counts.columns = ['Role', 'Count']
+                fig_roles = px.pie(
+                    role_counts, values='Count', names='Role', 
+                    title="Squad Composition by Role",
+                    template=chart_template, hole=0.4,
+                    color_discrete_sequence=px.colors.qualitative.Pastel
+                )
+                st.plotly_chart(fig_roles, use_container_width=True)
+                
+        with col2:
+            if 'nationality' in team_squad.columns:
+                nat_counts = team_squad['nationality'].value_counts().reset_index()
+                nat_counts.columns = ['Nationality', 'Count']
+                fig_nat = px.pie(
+                    nat_counts, values='Count', names='Nationality',
+                    title="Local vs Overseas Players",
+                    template=chart_template,
+                    color_discrete_sequence=[primary_color, secondary_color]
+                )
+                st.plotly_chart(fig_nat, use_container_width=True)
+                
+        st.dataframe(team_squad.drop(team_col, axis=1, errors='ignore'), use_container_width=True, hide_index=True)
+    else:
+        st.error("Squad data not found.")
+
+# --- 6. Venues ---
+elif page == "Venues":
+    st.title("🏟️ Venues")
+    st.markdown("Details of all venues hosting the IPL 2026 matches.")
+    
+    if not df_venues.empty:
+        if 'capacity' in df_venues.columns:
+            # Ensure capacity is numeric
+            df_venues['capacity'] = pd.to_numeric(df_venues['capacity'], errors='coerce')
+            
+            fig_capacity = px.bar(
+                df_venues.sort_values('capacity', ascending=False),
+                x='venue_stadium',
+                y='capacity',
+                color='home_team' if 'home_team' in df_venues.columns else None,
+                title="Stadium Capacities",
+                template=chart_template,
+                color_discrete_sequence=px.colors.qualitative.Vivid
+            )
+            st.plotly_chart(fig_capacity, use_container_width=True)
+            
+        st.dataframe(df_venues, use_container_width=True, hide_index=True)
+    else:
+        st.error("Venue data not found.")
+
+# --- 7. Deliveries ---
+elif page == "Deliveries":
+    st.title("📦 Deliveries Data")
+    st.markdown("Detailed ball-by-ball data and overarching trends.")
+    
+    if not df_deliveries.empty:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if 'wicket_type' in df_deliveries.columns:
+                wickets_df = df_deliveries.dropna(subset=['wicket_type'])
+                if not wickets_df.empty:
+                    wkt_counts = wickets_df['wicket_type'].value_counts().reset_index()
+                    wkt_counts.columns = ['Wicket Type', 'Count']
+                    
+                    fig_wkt = px.bar(
+                        wkt_counts, x='Wicket Type', y='Count',
+                        title="Distribution of Wicket Types",
+                        template=chart_template,
+                        color='Count',
+                        color_continuous_scale="Reds"
+                    )
+                    st.plotly_chart(fig_wkt, use_container_width=True)
+        
+        with col2:
+            if 'extras' in df_deliveries.columns and 'runs_of_bat' in df_deliveries.columns:
+                extras_sum = pd.to_numeric(df_deliveries['extras'], errors='coerce').sum()
+                runs_sum = pd.to_numeric(df_deliveries['runs_of_bat'], errors='coerce').sum()
+                
+                fig_runs = px.pie(
+                    names=['Runs off Bat', 'Extras'],
+                    values=[runs_sum, extras_sum],
+                    title="Runs vs Extras Overall",
+                    template=chart_template, hole=0.5,
+                    color_discrete_sequence=[primary_color, accent_color]
+                )
+                st.plotly_chart(fig_runs, use_container_width=True)
+
+        st.warning("Displaying the first 1000 rows for performance reasons.")
+        st.dataframe(df_deliveries.head(1000), use_container_width=True, hide_index=True)
+    else:
+        st.error("Deliveries data not found.")
+
+# --- 8. Fielding Statistics ---
+elif page == "Fielding Statistics":
+    st.title("🧤 Fielding Statistics")
+    st.markdown("Insights into the fielding performances of players.")
+    
+    if not df_fielding_stats.empty:
+        if 'catches' in df_fielding_stats.columns:
+            df_fielding_stats['catches'] = pd.to_numeric(df_fielding_stats['catches'], errors='coerce')
+            top_fielders = df_fielding_stats.sort_values('catches', ascending=False).head(10)
+            
+            fig_fielding = px.bar(
+                top_fielders,
+                x='player',
+                y='catches',
+                color='team',
+                hover_data=['matches', 'cpm'] if 'cpm' in df_fielding_stats.columns else None,
+                title="Top Catchers of the Tournament",
+                template=chart_template,
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            st.plotly_chart(fig_fielding, use_container_width=True)
+            
+        st.dataframe(df_fielding_stats.drop('rank', axis=1, errors='ignore'), use_container_width=True, hide_index=True)
+    else:
+        st.error("Fielding statistics data not found.")
